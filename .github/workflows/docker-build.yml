@@ -8,7 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   # 关键修改：自动提取用户名，并与固定镜像名组合
-  IMAGE_NAME: ${{ github.repository_owner }}/firefox
+  IMAGE_NAME: ${{ github.repository_owner }}/dbfirefox
 
 jobs:
   build-and-push:

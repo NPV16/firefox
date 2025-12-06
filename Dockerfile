@@ -1,4 +1,5 @@
 FROM alpine:latest
+
 RUN apk add --no-cache \
     firefox-esr \
     xvfb \
@@ -16,7 +17,9 @@ USER firefoxuser
 WORKDIR /home/firefoxuser
 
 COPY --chown=firefoxuser:firefoxuser supervisord.conf /etc/supervisor/conf.d/
-COPY --chown=firefoxuser:firefoxuser firefox-prefs.js /home/firefoxuser/.mozilla/firefox/default-release/user.js
+COPY --chown=firefoxuser:firefoxuser refresh.sh ./
+RUN chmod +x ./refresh.sh
 
 EXPOSE 7860
+
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

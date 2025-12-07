@@ -13,7 +13,7 @@ RUN apk update && \
 FROM alpine:edge
 WORKDIR /root
 
-# 安装依赖
+# 安装依赖（最小化安装）
 RUN apk update && \
     apk add --no-cache \
     bash \
@@ -33,10 +33,8 @@ COPY --from=firefox-builder /usr/bin/firefox /usr/bin/firefox
 
 # 修复符号链接问题
 RUN if [ -f /usr/bin/firefox ]; then \
-        echo "Firefox已安装到/usr/bin/firefox"; \
         ln -sf /usr/bin/firefox /usr/local/bin/firefox 2>/dev/null || true; \
     elif [ -f /usr/lib/firefox/firefox ]; then \
-        echo "Firefox在/usr/lib/firefox/firefox"; \
         ln -sf /usr/lib/firefox/firefox /usr/bin/firefox 2>/dev/null || true; \
         ln -sf /usr/lib/firefox/firefox /usr/local/bin/firefox 2>/dev/null || true; \
     fi
@@ -50,8 +48,8 @@ RUN chmod +x /entrypoint.sh && \
     cp -r /usr/share/webapps/novnc/* /usr/share/novnc/ 2>/dev/null || true && \
     mkdir -p /var/log
 
-# 暴露端口（使用环境变量默认值）
-EXPOSE 7860 5901
+# 暴露默认端口
+EXPOSE 6901 5901
 
 # 启动脚本
 ENTRYPOINT ["/entrypoint.sh"]

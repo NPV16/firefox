@@ -13,7 +13,7 @@ RUN apk update && \
 FROM alpine:edge
 WORKDIR /root
 
-# 安装依赖（包含sudo用于密码设置）
+# 安装依赖（包含expect用于非交互密码设置）
 RUN apk update && \
     apk add --no-cache \
     bash \
@@ -25,7 +25,8 @@ RUN apk update && \
     websockify \
     ttf-freefont \
     sudo \
-    font-noto-cjk
+    font-noto-cjk \
+    expect
 
 # 从第一阶段复制Firefox
 COPY --from=firefox-builder /usr/lib/firefox /usr/lib/firefox
@@ -43,15 +44,19 @@ RUN cp /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 RUN chmod +x /entrypoint.sh
 
 # 暴露默认端口（可通过环境变量覆盖）
-EXPOSE ${NOVNC_PORT:-6901} ${VNC_PORT:-5901}
+EXPOSE ${NOVNC_PORT:-7860} ${VNC_PORT:-5901}
 
 # 设置环境变量默认值
 ENV VNC_PASSWORD=alpine
-ENV NOVNC_PORT=6901
+ENV NOVNC_PORT=7860
 ENV VNC_PORT=5901
 ENV DISPLAY_WIDTH=1280
 ENV DISPLAY_HEIGHT=720
 ENV DISPLAY_DEPTH=24
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:${NOVNC_PORT:-6901}/ || exit 1
 
 # 设置容器启动命令
 ENTRYPOINT ["/entrypoint.sh"]

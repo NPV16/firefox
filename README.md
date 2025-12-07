@@ -43,7 +43,7 @@ services:
 
 volumes:
   firefox_profile:
-```
+``````
 
 启动后，通过浏览器访问 http://你的服务器IP:7860 即可。
 

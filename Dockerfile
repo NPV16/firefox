@@ -13,19 +13,20 @@ RUN apk update && \
 FROM alpine:edge
 WORKDIR /root
 
-# 安装依赖 - 使用 tightvncserver 替代 x11vnc
+# 安装依赖 - 使用正确的包名
 RUN apk update && \
     apk add --no-cache \
     bash \
     fluxbox \
     xvfb \
-    tightvncserver \
+    x11vnc \
     supervisor \
     novnc \
     websockify \
     ttf-freefont \
     sudo \
-    font-noto-cjk
+    font-noto-cjk \
+    tigervnc  # 正确的包名，提供vncpasswd和vncserver
 
 # 从第一阶段复制Firefox
 COPY --from=firefox-builder /usr/lib/firefox /usr/lib/firefox
@@ -49,7 +50,7 @@ RUN chmod +x /entrypoint.sh && \
     mkdir -p /var/log
 
 # 暴露默认端口
-EXPOSE 7860 5901
+EXPOSE 6901 5901
 
 # 启动脚本
 ENTRYPOINT ["/entrypoint.sh"]

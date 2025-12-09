@@ -7,7 +7,8 @@ on:
       custom_image_name:
         description: '自定义的镜像名称（例如：myapp/firefox-novnc）'
         required: true
-        default: 'testff' # 默认使用当前仓库名
+        # 设置一个更健壮的默认值，使用仓库名
+        default: ${{ github.event.repository.name }}
 
 jobs:
   build:
@@ -39,9 +40,9 @@ jobs:
         with:
           context: .
           push: true
-          # 使用输入的自定义镜像名，并固定标签为 latest
+          # 关键修改：在 ghcr.io/ 后拼接用户名/组织名，然后是自定义镜像名
           tags: |
-            ghcr.io/${{ github.event.inputs.custom_image_name }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.inputs.custom_image_name }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -49,5 +50,5 @@ jobs:
       - name: 输出镜像信息
         run: |
           echo "✅ 镜像构建并推送成功！"
-          echo "📦 镜像地址：ghcr.io/${{ github.event.inputs.custom_image_name }}:latest"
-          echo "📥 拉取命令：docker pull ghcr.io/${{ github.event.inputs.custom_image_name }}:latest"
+          echo "📦 镜像地址：ghcr.io/${{ github.repository_owner }}/${{ github.event.inputs.custom_image_name }}:latest"
+          echo "📥 拉取命令：docker pull ghcr.io/${{ github.repository_owner }}/${{ github.event.inputs.custom_image_name }}:latest"

@@ -40,12 +40,11 @@ RUN apk add --no-cache \
     font-noto-cjk \
     && rm -rf /var/cache/apk/*
 
-# 设置中文语言环境
-RUN apk add --no-cache \
-    locales \
-    && echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen \
-    && locale-gen zh_CN.UTF-8 \
-    && rm -rf /var/cache/apk/*
+# 设置中文语言环境 - 使用简化的方法
+RUN apk add --no-cache musl-locales && \
+    echo "export LANG=zh_CN.UTF-8" >> /etc/profile.d/locale.sh && \
+    echo "export LANGUAGE=zh_CN:zh" >> /etc/profile.d/locale.sh && \
+    echo "export LC_ALL=zh_CN.UTF-8" >> /etc/profile.d/locale.sh
 
 # 创建必要的目录结构
 RUN mkdir -p /var/log/supervisor /etc/supervisor/conf.d /root/.vnc

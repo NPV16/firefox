@@ -1,74 +1,102 @@
 # 阶段1: 构建器 - 仅准备静态资产
-FROM alpine:latest AS builder
+FROM alpine:latest as builder
+
+# 安装临时构建工具（这些不会进入最终镜像）
 RUN apk add --no-cache git openssl
-RUN git clone --depth 1 --branch v1.4.0 https://github.com/novnc/noVNC.git /assets/novnc && \
-    git clone --depth 1 --branch v0.11.0 https://github.com/novnc/websockify /assets/novnc/utils/websockify
+
+# 克隆 noVNC 及其依赖（主要的静态资产）
+RUN git clone --depth 1 https://github.com/novnc/noVNC.git /assets/novnc && \
+    git clone --depth 1 https://github.com/novnc/websockify /assets/novnc/utils/websockify
+
+# （可选）在第一阶段生成SSL证书
 RUN mkdir -p /assets/novnc/utils/ssl && \
     cd /assets/novnc/utils/ssl && \
     openssl req -x509 -nodes -newkey rsa:2048 \
         -keyout self.pem -out self.pem -days 3650 \
         -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost" 2>/dev/null
-RUN rm -rf /assets/novnc/.git /assets/novnc/utils/websockify/.git
 
-# 阶段2: 最终运行时镜像 ---> 关键修复行（原第14行左右）
-FROM alpine:edge
-LABEL org.opencontainers.image.title="Lightweight Firefox with noVNC (中文支持)"
 
-# 安装运行时依赖及中文支持
-RUN --mount=type=cache,target=/var/cache/apk \
-    apk update && apk add --no-cache \
-    firefox-esr \
-    x11vnc \
+# 阶段2: 最终运行时镜像
+FROM alpine:latest
+
+LABEL org.opencontainers.image.title="Lightweight Firefox with noVNC"
+LABEL org.opencontainers.image.description="Ultra-lightweight Firefox browser with noVNC web access and VNC password support"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# 安装所有运行时依赖（包含中文字体）
+RUN apk add --no-cache \
+    firefox \
     xvfb \
+    x11vnc \
     supervisor \
-    fluxbox \
     bash \
-    curl \
-    tzdata \
-    locales \
+    fluxbox \
+    # 基础字体集
     font-misc-misc \
     font-cursor-misc \
     ttf-dejavu \
+    # 中文字体
     font-noto \
     font-noto-cjk \
+    font-noto-extra \
+    font-noto-arabic \
+    font-noto-thai \
     font-noto-emoji \
-    && \
-    rm -rf /var/cache/apk/* && \
-    mkdir -p /var/log/supervisor /etc/supervisor/conf.d /root/.vnc /root/.mozilla
+    # 文泉驿中文字体
+    font-wqy-zenhei \
+    font-wqy-microhei \
+    # 其他常用字体
+    ttf-droid \
+    ttf-freefont \
+    ttf-liberation \
+    ttf-inconsolata \
+    && rm -rf /var/cache/apk/*
 
-# 配置中文环境
-RUN echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen && \
-    echo 'LANG="zh_CN.UTF-8"' > /etc/locale.conf && \
-    echo 'LC_ALL="zh_CN.UTF-8"' >> /etc/locale.conf
+# 设置中文语言环境
+RUN apk add --no-cache \
+    locales \
+    && echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen \
+    && locale-gen zh_CN.UTF-8 \
+    && rm -rf /var/cache/apk/*
 
-# 复制配置文件
-COPY supervisord.conf /etc/supervisor/supervisord.conf
-COPY start.sh /usr/local/bin/start.sh
-COPY fluxbox-init /etc/fluxbox-init
+# 创建必要的目录结构
+RUN mkdir -p /var/log/supervisor /etc/supervisor/conf.d /root/.vnc
+
+# 关键优化：从构建器阶段仅复制准备好的静态资产
 COPY --from=builder /assets/novnc /opt/novnc
 
-# 设置noVNC默认页面
-RUN echo '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0;url=vnc.html?autoconnect=true&resize=remote"></head><body><p>正在重定向到 noVNC 客户端...</p></body></html>' > /opt/novnc/index.html
+# 复制本地配置文件
+COPY supervisord.conf /etc/supervisor/supervisord.conf
+COPY start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
 
-# 设置权限
-RUN chmod +x /usr/local/bin/start.sh && \
-    adduser -D -u 1000 -g 1000 -s /bin/bash firefox && \
-    chown -R firefox:firefox /opt/novnc /home/firefox
+# 设置noVNC默认跳转页面
+RUN echo '<html><head><meta http-equiv="refresh" content="0;url=vnc.html"></head><body></body></html>' > /opt/novnc/index.html
 
-# 暴露端口和环境变量
+# 为Firefox创建配置文件以支持中文显示
+RUN mkdir -p /root/.mozilla/firefox/default && \
+    echo 'pref("font.name-list.serif.zh-CN", "Noto Serif CJK SC, WenQuanYi Zen Hei, DejaVu Serif");' > /root/.mozilla/firefox/default/prefs.js && \
+    echo 'pref("font.name-list.sans-serif.zh-CN", "Noto Sans CJK SC, WenQuanYi Zen Hei, DejaVu Sans");' >> /root/.mozilla/firefox/default/prefs.js && \
+    echo 'pref("font.name-list.monospace.zh-CN", "Noto Sans Mono CJK SC, WenQuanYi Zen Hei Mono, DejaVu Sans Mono");' >> /root/.mozilla/firefox/default/prefs.js && \
+    echo 'pref("intl.accept_languages", "zh-CN, en-US, en");' >> /root/.mozilla/firefox/default/prefs.js && \
+    echo 'pref("font.language.group", "zh-CN");' >> /root/.mozilla/firefox/default/prefs.js
+
+# 创建Firefox默认用户配置文件，避免首次启动向导
+RUN echo '{"HomePage":"about:blank","StartPage":"about:blank"}' > /root/.mozilla/firefox/default/user.js
+
+# 暴露端口
 EXPOSE 7860 5900
-ENV DISPLAY=:99 \
-    DISPLAY_WIDTH=1280 \
-    DISPLAY_HEIGHT=720 \
-    VNC_PASSWORD=admin \
-    VNC_PORT=5900 \
-    NOVNC_PORT=7860 \
-    LANG=zh_CN.UTF-8 \
-    LANGUAGE=zh_CN:zh:en_US:en \
-    LC_ALL=zh_CN.UTF-8 \
-    TZ=Asia/Shanghai \
-    XVFB_WHD="${DISPLAY_WIDTH}x${DISPLAY_HEIGHT}x24"
 
-WORKDIR /opt/novnc
-USER firefox
+# 设置环境变量
+ENV DISPLAY=:99
+ENV DISPLAY_WIDTH=1280
+ENV DISPLAY_HEIGHT=720
+ENV VNC_PASSWORD=changeme
+ENV VNC_PORT=5900
+ENV NOVNC_PORT=7860
+ENV LANG=zh_CN.UTF-8
+ENV LANGUAGE=zh_CN:zh
+ENV LC_ALL=zh_CN.UTF-8
+
+# 启动入口
 CMD ["/usr/local/bin/start.sh"]

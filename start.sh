@@ -1,9 +1,7 @@
 #!/bin/bash
 
-# 设置英文语言环境
-export LANG=en_US.UTF-8
-export LANGUAGE=en_US:en
-export LC_ALL=en_US.UTF-8
+# 设置语言环境（使用POSIX兼容的locale）
+export LANG=${LANG:-C.UTF-8}
 
 # 设置环境变量
 export DISPLAY=${DISPLAY:-:99}
@@ -14,24 +12,20 @@ export VNC_PORT=${VNC_PORT:-5900}
 export NOVNC_PORT=${NOVNC_PORT:-7860}
 export DATA_DIR=${DATA_DIR:-/data}
 
-# 确保挂载的/data目录存在并有正确权限
-if [ ! -d "$DATA_DIR" ]; then
-    echo "Creating data directory: $DATA_DIR"
-    mkdir -p "$DATA_DIR"
-    chmod 755 "$DATA_DIR"
-fi
-
-# 在/data目录下创建子目录结构
-mkdir -p "$DATA_DIR/downloads"
-mkdir -p "$DATA_DIR/firefox-profile"
-mkdir -p "$DATA_DIR/config"
-mkdir -p "$DATA_DIR/logs"
-
-# 创建字体缓存
-if [ ! -f "$DATA_DIR/config/fonts.cache" ]; then
-    echo "Generating font cache..."
-    fc-cache -f -v
-    touch "$DATA_DIR/config/fonts.cache"
+# 如果挂载了/data目录，则使用它
+if [ -d "$DATA_DIR" ]; then
+    # 在/data目录下创建子目录结构
+    mkdir -p "$DATA_DIR/downloads"
+    mkdir -p "$DATA_DIR/firefox-profile"
+    mkdir -p "$DATA_DIR/config"
+    mkdir -p "$DATA_DIR/logs"
+    
+    # 如果/data/firefox-profile中有配置文件，使用它
+    if [ -d "$DATA_DIR/firefox-profile" ] && [ "$(ls -A $DATA_DIR/firefox-profile)" ]; then
+        echo "Using Firefox profile from $DATA_DIR/firefox-profile"
+        rm -rf /root/.mozilla
+        ln -sf "$DATA_DIR/firefox-profile" /root/.mozilla
+    fi
 fi
 
 # 创建VNC密码文件（如果不存在）
@@ -39,13 +33,6 @@ if [ ! -f /root/.vnc/passwd ]; then
     mkdir -p /root/.vnc
     x11vnc -storepasswd "$VNC_PASSWORD" /root/.vnc/passwd
     echo "VNC password set to: $VNC_PASSWORD"
-fi
-
-# 如果/data/firefox-profile中有配置文件，使用它
-if [ -d "$DATA_DIR/firefox-profile" ] && [ "$(ls -A $DATA_DIR/firefox-profile)" ]; then
-    echo "Using Firefox profile from $DATA_DIR/firefox-profile"
-    rm -rf /root/.mozilla
-    ln -sf "$DATA_DIR/firefox-profile" /root/.mozilla
 fi
 
 # 启动Xvfb（虚拟显示服务器）
@@ -75,12 +62,14 @@ echo "Container is running!"
 echo "======================================="
 echo "Access noVNC at: http://localhost:${NOVNC_PORT}"
 echo "VNC password: ${VNC_PASSWORD}"
-echo ""
-echo "Data directory mounted at: ${DATA_DIR}"
-echo "  - Downloads: ${DATA_DIR}/downloads"
-echo "  - Firefox profile: ${DATA_DIR}/firefox-profile"
-echo "  - Config: ${DATA_DIR}/config"
-echo "  - Logs: ${DATA_DIR}/logs"
+if [ -d "$DATA_DIR" ]; then
+    echo ""
+    echo "Data directory mounted at: ${DATA_DIR}"
+    echo "  - Downloads: ${DATA_DIR}/downloads"
+    echo "  - Firefox profile: ${DATA_DIR}/firefox-profile"
+    echo "  - Config: ${DATA_DIR}/config"
+    echo "  - Logs: ${DATA_DIR}/logs"
+fi
 echo "======================================="
 
 # 进入无限循环保持容器运行

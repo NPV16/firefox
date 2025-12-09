@@ -1,14 +1,12 @@
 name: 构建 Docker 镜像
 
-# 仅通过手动触发，并接受一个自定义镜像名作为输入
 on:
   workflow_dispatch:
     inputs:
       custom_image_name:
-        description: '自定义的镜像名称（例如：myapp/firefox-novnc）'
-        required: true
-        # 设置一个更健壮的默认值，使用仓库名
-        default: ${{ github.event.repository.name }}
+        description: '自定义的镜像名称（例如：myapp/firefox-novnc，留空则默认为firefox）'
+        required: false  # 由于有默认值，可以设为非必需
+        default: 'firefox'  # 关键修改：默认镜像名设为 firefox
 
 jobs:
   build:
@@ -18,15 +16,12 @@ jobs:
       packages: write
 
     steps:
-      # 1. 获取代码
       - name: 检出代码
         uses: actions/checkout@v4
 
-      # 2. 设置 Docker 构建环境
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 3. 登录到 GitHub Container Registry
       - name: 登录到 GHCR
         uses: docker/login-action@v3
         with:
@@ -34,19 +29,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 4. 构建并推送镜像
       - name: 构建并推送
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          # 关键修改：在 ghcr.io/ 后拼接用户名/组织名，然后是自定义镜像名
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ github.event.inputs.custom_image_name }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 5. 输出成功信息
       - name: 输出镜像信息
         run: |
           echo "✅ 镜像构建并推送成功！"

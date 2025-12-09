@@ -87,16 +87,5 @@ RUN echo '{"HomePage":"about:blank","StartPage":"about:blank"}' > /root/.mozilla
 # 暴露端口
 EXPOSE 7860 5900
 
-# 设置环境变量
-ENV DISPLAY=:99
-ENV DISPLAY_WIDTH=1280
-ENV DISPLAY_HEIGHT=720
-ENV VNC_PASSWORD=changeme
-ENV VNC_PORT=5900
-ENV NOVNC_PORT=7860
-ENV LANG=zh_CN.UTF-8
-ENV LANGUAGE=zh_CN:zh
-ENV LC_ALL=zh_CN.UTF-8
-
 # 启动入口
 CMD ["/usr/local/bin/start.sh"]

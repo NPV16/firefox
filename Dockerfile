@@ -1,59 +1,17 @@
 # ============================================================================
-# 阶段1: 构建器 - 在Alpine (musl libc) 环境中编译KasmVNC
+# 阶段1: 构建器 - 下载KasmVNC预编译二进制文件
 # ============================================================================
 FROM alpine:latest AS builder
 
-# 1. 更新软件源并安装所有编译依赖
-# 关键：在Alpine中，部分开发包名称与通用名略有不同。
-RUN apk update && apk add --no-cache \
-    build-base \
-    cmake \
-    git \
-    # 图形和编码库
-    libjpeg-turbo-dev \
-    libpng-dev \
-    libwebp-dev \
-    # X11开发库 (Alpine包名通常以‘-dev’结尾)
-    libxtst-dev \
-    libx11-dev \
-    libxext-dev \
-    libxi-dev \
-    libxrandr-dev \
-    libxfixes-dev \
-    libxdamage-dev \
-    libxcursor-dev \
-    xorgproto \          # 提供X11协议头文件
-    # 加密和网络库
-    openssl-dev \
-    nettle-dev \
-    # 构建工具
-    libtool \
-    automake \
-    autoconf \
-    pkgconf \           # Alpine中通常叫 pkgconf，不是 pkgconfig
-    g++ \
-    # 内核头文件（某些低级库需要）
-    linux-headers
+RUN apk add --no-cache wget xz
+ARG KASMVNC_VERSION="1.3.1"
+ARG KASMVNC_ARCH="x86_64"
 
-# 2. 克隆并编译KasmVNC
-# 注意：我们已关闭了图形化VIEWER的编译（-DBUILD_VIEWER=OFF），并明确设置安装前缀。
-RUN cd /tmp && \
-    git clone https://github.com/kasmtech/KasmVNC.git --depth 1 && \
-    cd KasmVNC && \
-    mkdir build && cd build && \
-    # 关键配置：指定Release模式、关闭Viewer、设置安装路径。
-    # 在Alpine上，使用默认的编译器和库。
-    cmake .. \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DBUILD_VIEWER=OFF \
-        -DCMAKE_INSTALL_PREFIX=/usr/local && \
-    # 如果服务器内存较小，可去掉 -j$(nproc) 或改为 -j2
-    make -j$(nproc) && \
-    make DESTDIR=/opt/kasmvnc install
-
-# 至此，KasmVNC已被安装到 /opt/kasmvnc/usr/local/ 目录下。
+RUN wget -q https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VERSION}/kasmvncserver_${KASMVNC_ARCH}.tar.xz -O /tmp/kasmvnc.tar.xz && \
+    mkdir -p /opt/kasmvnc && \
+    tar -xJf /tmp/kasmvnc.tar.xz -C /opt/kasmvnc --strip-components=1 && \
+    rm /tmp/kasmvnc.tar.xz
 # ============================================================================
-
 # 阶段2: 最终运行时镜像
 # ============================================================================
 FROM alpine:latest

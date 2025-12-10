@@ -1,16 +1,45 @@
 # ============================================================================
-# 阶段1: 构建器 - 下载KasmVNC预编译二进制文件
+# 阶段1: 构建器 - 在Alpine环境中编译KasmVNC（完整修正版）
 # ============================================================================
 FROM alpine:latest AS builder
 
-RUN apk add --no-cache wget xz
-ARG KASMVNC_VERSION="1.3.1"
-ARG KASMVNC_ARCH="x86_64"
+# 1. 更新软件源并安装所有编译依赖（完整单行命令，避免断行错误）
+RUN apk update && apk add --no-cache \
+    build-base \
+    cmake \
+    git \
+    libjpeg-turbo-dev \
+    libpng-dev \
+    libwebp-dev \
+    libxtst-dev \
+    libx11-dev \
+    libxext-dev \
+    libxi-dev \
+    libxrandr-dev \
+    libxfixes-dev \
+    libxdamage-dev \
+    libxcursor-dev \
+    xorgproto \
+    openssl-dev \
+    nettle-dev \
+    libtool \
+    automake \
+    autoconf \
+    pkgconf \
+    g++ \
+    linux-headers
 
-RUN wget -q https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VERSION}/kasmvncserver_${KASMVNC_ARCH}.tar.xz -O /tmp/kasmvnc.tar.xz && \
-    mkdir -p /opt/kasmvnc && \
-    tar -xJf /tmp/kasmvnc.tar.xz -C /opt/kasmvnc --strip-components=1 && \
-    rm /tmp/kasmvnc.tar.xz
+# 2. 克隆并编译KasmVNC
+RUN cd /tmp && \
+    git clone https://github.com/kasmtech/KasmVNC.git --depth 1 && \
+    cd KasmVNC && \
+    mkdir build && cd build && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_VIEWER=OFF \
+        -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make DESTDIR=/opt/kasmvnc install
 # ============================================================================
 # 阶段2: 最终运行时镜像
 # ============================================================================

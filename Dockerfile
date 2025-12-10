@@ -80,22 +80,14 @@ COPY supervisord.conf /etc/supervisor/supervisord.conf
 COPY start.sh /usr/local/bin/start.sh
 COPY fluxbox-init /home/appuser/.fluxbox/init
 
-# 创建必要的目录结构
+# 创建必要的目录结构并设置权限
 RUN mkdir -p ${FIREFOX_PROFILE_DIR} && \
     mkdir -p ${FIREFOX_DOWNLOAD_DIR} && \
     mkdir -p ${FIREFOX_LOCAL_STORAGE} && \
-    # 设置noVNC默认跳转页面
     echo '<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=vnc.html"></head><body></body></html>' > /opt/novnc/index.html && \
-    # 创建noVNC健康检查页面
     echo 'OK' > /opt/novnc/health && \
-    # 设置权限
     chown -R appuser:appuser /opt/novnc ${FIREFOX_PROFILE_DIR} && \
-    chmod +x /usr/local/bin/start.sh && \
-    chmod 644 /opt/novnc/*.html /opt/novnc/*.js /opt/novnc/*.css 2>/dev/null || true
-
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${NOVNC_PORT}/health || exit 1
+    chmod +x /usr/local/bin/start.sh
 
 # 暴露端口
 EXPOSE 7860 5900

@@ -37,26 +37,12 @@ LABEL org.opencontainers.image.title="Firefox with noVNC - Local Storage at /dat
       org.opencontainers.image.description="Firefox browser with noVNC, VNC password support, and persistent local storage at /data/firefox/" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="1.0.0" \
-      maintainer="your-email@example.com"
 
 # 创建非root用户
 RUN addgroup -g 1000 -S appuser && \
     adduser -u 1000 -S appuser -G appuser && \
     mkdir -p /data/firefox && \
     chown -R appuser:appuser /data/firefox
-
-# 设置环境变量
-ENV DISPLAY=:99 \
-    DISPLAY_WIDTH=1280 \
-    DISPLAY_HEIGHT=720 \
-    VNC_PORT=5900 \
-    NOVNC_PORT=5800 \
-    VNC_PASSWORD="" \
-    LANG=en_US.UTF-8 \
-    TZ=UTC \
-    FIREFOX_PROFILE_DIR=/data/firefox \
-    FIREFOX_DOWNLOAD_DIR=/data/firefox/downloads \
-    FIREFOX_LOCAL_STORAGE=/data/firefox/storage
 
 # 安装运行时依赖
 RUN apk update && apk add --no-cache \
@@ -100,11 +86,16 @@ RUN mkdir -p ${FIREFOX_PROFILE_DIR} && \
     mkdir -p ${FIREFOX_LOCAL_STORAGE} && \
     # 设置noVNC默认跳转页面
     echo '<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=vnc.html"></head><body></body></html>' > /opt/novnc/index.html && \
+    # 创建noVNC健康检查页面
     echo 'OK' > /opt/novnc/health && \
     # 设置权限
     chown -R appuser:appuser /opt/novnc ${FIREFOX_PROFILE_DIR} && \
     chmod +x /usr/local/bin/start.sh && \
     chmod 644 /opt/novnc/*.html /opt/novnc/*.js /opt/novnc/*.css 2>/dev/null || true
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${NOVNC_PORT}/health || exit 1
 
 # 暴露端口
 EXPOSE 7860 5900

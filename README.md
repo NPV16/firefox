@@ -7,9 +7,9 @@ VNC_PASSWORD# firefox
 ## 快速开始
 ```bash
 # 克隆仓库
-git clone https://github.com/goyo123321/lightweight-firefox-novnc.git
+git clone [https://github.com/goyo123321/lightweight-firefox-novnc.git
 cd lightweight-firefox-novnc
-
+](https://github.com/goyo123321/firefox)
 # 复制环境变量文件并修改密码
 cp .env.example .env
 # 编辑 .env 文件，设置你的 VNC_PASSWORD
